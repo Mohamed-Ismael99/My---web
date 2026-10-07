@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>جدول العملاء</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#f3f3f3; --sheet-bg:#fff; --border:#d4d4d4;
+    --header-bg:#f8f9fa; --header-hover:#e8eaed;
+    --accent:#1a73e8; --accent-soft:#e8f0fe;
+    --text:#202124; --muted:#5f6368; --danger:#e74c3c;
+    --green:#1e8e3e; --purple:#7c3aed;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);
+       height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+  .toolbar{background:#fff;border-bottom:1px solid var(--border);
+    padding:.6rem 1rem;display:flex;gap:.5rem;align-items:center;
+    flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.05);z-index:30;position:relative}
+  .toolbar .brand{font-weight:700;color:var(--accent);margin-inline-end:.5rem;
+    display:flex;align-items:center;gap:.4rem}
+  .toolbar .brand span{background:var(--accent);color:#fff;width:28px;height:28px;
+    display:grid;place-items:center;border-radius:6px;font-size:1rem}
+  .toolbar button{font-family:inherit;font-size:.9rem;padding:.5rem .9rem;
+    border:1px solid var(--border);background:#fff;color:var(--text);
+    border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;
+    gap:.35rem;transition:.15s}
+  .toolbar button:hover:not(:disabled){background:var(--header-hover);border-color:#bbb}
+  .toolbar button:disabled{opacity:.35;cursor:not-allowed}
+  .toolbar button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .toolbar button.primary:hover:not(:disabled){background:#1667d1}
+  .toolbar button.success{background:var(--green);color:#fff;border-color:var(--green)}
+  .toolbar button.success:hover:not(:disabled){background:#157a34}
+  .toolbar button.contact{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .toolbar button.contact:hover:not(:disabled){background:#6d28d9}
+  .toolbar button.history{background:#f1f3f4;border-color:#dadce0;
+    font-size:1rem;padding:.45rem .7rem;min-width:38px;justify-content:center}
+  .toolbar button.history:hover:not(:disabled){background:#e2e5e8}
+  .toolbar button.history .badge{font-size:.68rem;font-weight:700;
+    background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;
+    min-width:18px;text-align:center;margin-inline-start:2px}
+  .toolbar button.history:disabled .badge{background:#bbb}
+  .toolbar button.alerts-on{background:#fff5e6;border-color:#ffd9a0;color:#b26a00}
+  .toolbar button.alerts-on:hover:not(:disabled){background:#ffe9c9}
+  .toolbar button.alerts-off{background:#e8f5e9;border-color:#a5d6a7;color:#2e7d32}
+  .toolbar button.alerts-off:hover:not(:disabled){background:#d4ebd5}
+  .toolbar .sep{width:1px;height:24px;background:#ddd;margin:0 .2rem}
+  .toolbar .spacer{flex:1}
+  .toolbar .status{font-size:.82rem;color:var(--muted);white-space:nowrap}
+  .toolbar .reminder-box{display:flex;align-items:center;gap:.4rem;font-size:.85rem;
+    color:var(--muted);background:#fff5e6;border:1px solid #ffd9a0;
+    padding:.4rem .7rem;border-radius:6px}
+  .toolbar .reminder-box input{width:52px;font-family:inherit;font-size:.85rem;
+    padding:.25rem .4rem;border:1px solid #ffd9a0;border-radius:4px;
+    background:#fff;color:var(--text);text-align:center}
+  .toolbar .reminder-box label{display:flex;align-items:center;gap:.3rem}
+  .toolbar .reminder-box.disabled{opacity:.45;pointer-events:none}
+
+  .history-wrap{position:relative;display:inline-block}
+  .history-dropdown{
+    position:absolute;top:calc(100% + 8px);inset-inline-start:0;
+    width:360px;max-height:440px;
+    background:#fff;border:1px solid #ddd;border-radius:10px;
+    box-shadow:0 12px 32px rgba(0,0,0,.18);
+    z-index:200;overflow:hidden;
+    display:none;flex-direction:column;
+  }
+  .history-dropdown.open{display:flex}
+  .history-dropdown .hd-head{
+    padding:.6rem .8rem;border-bottom:1px solid #eee;
+    display:flex;justify-content:space-between;align-items:center;
+    background:#f8f9fa;font-weight:700;font-size:.9rem
+  }
+  .history-dropdown .hd-head .info{display:flex;flex-direction:column;gap:.1rem}
+  .history-dropdown .hd-head .info small{
+    font-weight:400;color:var(--muted);font-size:.72rem
+  }
+  .history-dropdown .hd-head button{
+    border:none;background:transparent;font-size:1.1rem;
+    cursor:pointer;color:#888;padding:.2rem .4rem;border-radius:4px
+  }
+  .history-dropdown .hd-head button:hover{background:#eaeaea;color:#333}
+  .history-dropdown .hd-list{flex:1;overflow-y:auto;padding:.3rem 0;max-height:340px}
+  .history-dropdown .hd-list::-webkit-scrollbar{width:8px}
+  .history-dropdown .hd-list::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px}
+  .history-item{
+    padding:.5rem .8rem;cursor:pointer;font-size:.84rem;
+    display:flex;align-items:center;gap:.55rem;
+    border-inline-start:3px solid transparent;
+    transition:background .1s;color:var(--text);
+  }
+  .history-item:hover{background:#f0f3f7}
+  .history-item.current{
+    background:var(--accent-soft);border-inline-start-color:var(--accent);font-weight:700;
+  }
+  .history-item.future{opacity:.5}
+  .history-item .icon{font-size:1rem;width:22px;text-align:center;flex-shrink:0}
+  .history-item .label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .history-item .time{font-size:.7rem;color:#999;white-space:nowrap;flex-shrink:0}
+  .history-item.current .time{color:var(--accent)}
+  .hd-empty{padding:1.5rem 1rem;text-align:center;color:#999;font-size:.85rem}
+  .hd-foot{
+    padding:.5rem;border-top:1px solid #eee;
+    display:flex;gap:.4rem;background:#f8f9fa
+  }
+  .hd-foot button{
+    flex:1;padding:.45rem;font-size:.8rem;
+    border:1px solid var(--border);border-radius:6px;
+    background:#fff;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
+    transition:.15s
+  }
+  .hd-foot button:hover{background:#eef0f3}
+  .hd-foot button.danger{color:var(--danger)}
+  .hd-foot button.danger:hover{background:#fdecec;border-color:#f5c2c2}
+
+  .sheet-wrap{flex:1;overflow:auto;padding:1rem}
+  table{border-collapse:separate;border-spacing:0;background:var(--sheet-bg);
+    table-layout:fixed;box-shadow:0 1px 4px rgba(0,0,0,.08);
+    border-radius:8px;overflow:hidden;min-width:100%}
+  th, td{border-inline-end:1px solid var(--border);
+    border-bottom:1px solid var(--border);padding:0;height:36px;font-size:.9rem}
+
+  th.corner{width:44px;min-width:44px;background:var(--header-bg);
+    position:sticky;top:0;inset-inline-start:0;z-index:15}
+
+  thead th.col-head{background:var(--header-bg);position:sticky;top:0;
+    z-index:6;color:var(--muted);font-weight:500;text-align:center;
+    min-width:130px;cursor:pointer;user-select:none;position:relative}
+  thead th.col-head:hover{background:var(--header-hover)}
+  thead th.col-head.selected{background:var(--accent-soft);color:var(--accent);font-weight:700}
+  thead th.col-head .del{position:absolute;inset-inline-end:4px;top:50%;
+    transform:translateY(-50%);width:18px;height:18px;border-radius:50%;
+    background:var(--danger);color:#fff;border:none;font-size:11px;
+    line-height:1;cursor:pointer;display:none;place-items:center;padding:0}
+  thead th.col-head:hover .del{display:grid}
+
+  tbody th.row-head{width:44px;min-width:44px;background:var(--header-bg);
+    color:var(--muted);font-weight:500;text-align:center;
+    position:sticky;inset-inline-start:0;z-index:4;
+    user-select:none;position:relative;transition:background .12s}
+  tbody th.row-head:hover{background:var(--header-hover)}
+  tbody th.row-head.selected{background:var(--accent-soft);color:var(--accent);font-weight:700}
+
+  tbody th.row-head[draggable="true"]{cursor:grab}
+  tbody th.row-head[draggable="true"]:active{cursor:grabbing}
+  tbody th.row-head[draggable="true"]::before{content:"⋮⋮";
+    position:absolute;inset-inline-start:3px;top:50%;transform:translateY(-50%);
+    color:#c0c0c0;font-size:11px;letter-spacing:-3px;
+    opacity:0;transition:opacity .15s;pointer-events:none}
+  tbody th.row-head[draggable="true"]:hover::before{opacity:1}
+  tbody th.row-head[draggable="true"]:hover{background:#dde7f5}
+
+  tbody th.row-head .del{position:absolute;inset-inline-end:4px;top:50%;
+    transform:translateY(-50%);width:16px;height:16px;border-radius:50%;
+    background:var(--danger);color:#fff;border:none;font-size:10px;
+    line-height:1;cursor:pointer;display:none;place-items:center;padding:0}
+  tbody th.row-head:hover .del{display:grid}
+
+  tbody tr.dragging{opacity:.35}
+  tbody tr.dragging td, tbody tr.dragging th{background:#e8f0fe}
+  tbody tr.drag-over-top td, tbody tr.drag-over-top th{
+    box-shadow:inset 0 4px 0 0 var(--accent)}
+  tbody tr.drag-over-bottom td, tbody tr.drag-over-bottom th{
+    box-shadow:inset 0 -4px 0 0 var(--accent)}
+
+  tr.filter-row td, tr.filter-row th{
+    background:#e8f0fe;height:36px;position:sticky;top:36px;z-index:3;
+    border-inline-end:1px solid var(--border);
+    border-bottom:1px solid var(--border);padding:4px 6px}
+  tr.filter-row th{width:44px;min-width:44px;inset-inline-start:0;z-index:9;
+    background:#d2e3fc;text-align:center;font-size:15px;
+    cursor:pointer;color:var(--accent)}
+  tr.filter-row th:hover{background:#c0d8fb}
+  tr.filter-row input{width:100%;border:1px solid #c9d4e3;border-radius:4px;
+    padding:3px 8px;font-family:inherit;font-size:.82rem;
+    background:#fff;outline:none;height:26px;color:var(--text)}
+  tr.filter-row input:focus{border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(26,115,232,.15)}
+  tr.filter-row input:not(:placeholder-shown){
+    border-color:var(--accent);background:#fff8e1;font-weight:500}
+
+  td.cell{min-width:130px;padding:6px 10px;outline:none;
+    overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+    transition:background .15s}
+  td.cell:focus{background:var(--accent-soft);
+    box-shadow:inset 0 0 0 2px var(--accent);white-space:normal}
+  td.cell.selected{background:var(--accent-soft)}
+  @keyframes importFlash{
+    0%{background:rgba(124,58,237,.35)}
+    100%{background:transparent}
+  }
+  td.cell.just-imported{animation:importFlash 2s ease-out}
+
+  tbody tr[data-row="0"] td.cell{
+    font-weight:700;background:#f8fafd;color:#1a3a6e}
+  tbody tr[data-row="0"] td.cell:focus{background:var(--accent-soft)}
+  tbody tr[data-row="0"] th.row-head{
+    background:#e8f0fe;color:var(--accent);font-weight:700;cursor:default}
+
+  tfoot td, tfoot th{background:var(--header-bg);border-bottom:none;
+    position:sticky;bottom:0;z-index:2}
+  tfoot button{width:100%;height:100%;border:none;background:transparent;
+    color:var(--accent);font-weight:700;font-family:inherit;
+    cursor:pointer;padding:.5rem}
+  tfoot button:hover{background:var(--accent-soft)}
+
+  @keyframes flashSoon{
+    0%,100%{background-color:rgba(231,76,60,.12);color:#c0392b}
+    50%{background-color:rgba(231,76,60,.78);color:#fff}}
+  @keyframes flashOverdue{
+    0%,100%{background-color:#e74c3c;color:#fff}
+    50%{background-color:#a5271a;color:#fff}}
+  td.cell.flash-soon{animation:flashSoon 1.1s infinite;font-weight:700;
+    box-shadow:inset 0 0 0 2px #e74c3c}
+  td.cell.flash-overdue{animation:flashOverdue 1.1s infinite;font-weight:700}
+
+  .sheet-wrap::-webkit-scrollbar{width:12px;height:12px}
+  .sheet-wrap::-webkit-scrollbar-track{background:#eee}
+  .sheet-wrap::-webkit-scrollbar-thumb{background:#bbb;border-radius:6px;border:3px solid #eee}
+  .sheet-wrap::-webkit-scrollbar-thumb:hover{background:#999}
+
+  .toast{position:fixed;bottom:24px;inset-inline-start:50%;
+    transform:translateX(50%) translateY(80px);
+    background:#202124;color:#fff;padding:.7rem 1.2rem;border-radius:8px;
+    font-size:.9rem;opacity:0;transition:.3s;pointer-events:none;z-index:100}
+  .toast.show{opacity:1;transform:translateX(50%) translateY(0)}
+  .toast.warn{background:#b26a00}
+  .toast.err{background:#c0392b}
+
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(0,0,0,.45);
+    display:none;align-items:center;justify-content:center;
+    z-index:300;padding:1rem
+  }
+  .modal-bg.open{display:flex}
+  .modal{
+    background:#fff;border-radius:14px;padding:1.4rem;
+    width:100%;max-width:520px;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+    display:flex;flex-direction:column;gap:.8rem
+  }
+  .modal h3{font-size:1.1rem;color:var(--accent);
+    display:flex;align-items:center;gap:.5rem}
+  .modal p{font-size:.85rem;color:var(--muted);line-height:1.7}
+  .modal textarea{
+    width:100%;min-height:180px;padding:.7rem;
+    border:1px solid var(--border);border-radius:8px;
+    font-family:inherit;font-size:.9rem;resize:vertical;
+    outline:none;line-height:1.7
+  }
+  .modal textarea:focus{border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(26,115,232,.15)}
+  .modal .actions{display:flex;gap:.5rem;justify-content:flex-end}
+  .modal .actions button{
+    padding:.55rem 1.1rem;border-radius:8px;cursor:pointer;
+    font-family:inherit;font-size:.9rem;border:1px solid var(--border);
+    background:#fff
+  }
+  .modal .actions button.primary{
+    background:var(--accent);color:#fff;border-color:var(--accent)
+  }
+  .modal .actions button:hover{background:#f3f3f3}
+  .modal .actions button.primary:hover{background:#1667d1}
+</style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <div class="brand"><span>▦</span> جدول العملاء</div>
+
+    <button id="undoBtn" class="history" onclick="undo()" disabled title="رجوع">↶ <span class="badge" id="undoCount">0</span></button>
+    <button id="redoBtn" class="history" onclick="redo()" disabled title="تقدم">↷ <span class="badge" id="redoCount">0</span></button>
+
+    <div class="history-wrap">
+      <button id="historyMenuBtn" class="history" onclick="toggleHistoryMenu(event)" title="سجل التعديلات">
+        📜 <span class="badge" id="historyTotal">0</span>
+      </button>
+      <div class="history-dropdown" id="historyDropdown">
+        <div class="hd-head">
+          <div class="info">
+            <span>سجل التعديلات</span>
+            <small id="hdPosition">—</small>
+          </div>
+          <button onclick="closeHistoryMenu()" title="إغلاق">×</button>
+        </div>
+        <div class="hd-list" id="hdList"></div>
+        <div class="hd-foot">
+          <button onclick="clearHistory()" class="danger">🗑 مسح السجل</button>
+          <button onclick="closeHistoryMenu()">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <button class="primary" onclick="addRow()">+ صف</button>
+    <button class="primary" onclick="addColumn()">+ عمود</button>
+    <button class="contact" onclick="importContacts()" title="استيراد من جهات اتصال الهاتف">📱 استيراد جهات اتصال</button>
+    <button class="success" onclick="exportToExcel()">📥 تصدير Excel</button>
+    <button onclick="clearFilters()">✕ مسح الفلاتر</button>
+    <button onclick="clearAll()">🗑 تفريغ الكل</button>
+    <button onclick="resetTable()">↺ إعادة تعيين</button>
+
+    <div class="spacer"></div>
+
+    <div class="reminder-box" id="reminderBox" title="التنبيه يعمل على عمود &quot;الوقت&quot;">
+      🔔 قبل
+      <label><input type="number" id="reminderMin" min="0" max="60" step="1" value="5"> دقيقة</label>
+      <span style="color:#888;font-size:.78rem">· وميض 10 د</span>
+    </div>
+
+    <button id="toggleAlerts" class="alerts-on" onclick="toggleAlerts()">🔕 إغلاق الوميض</button>
+
+    <div class="status" id="status">—</div>
+  </div>
+
+  <div class="sheet-wrap">
+    <table id="sheet">
+      <thead><tr id="headRow"><th class="corner"></th></tr></thead>
+      <tbody id="bodyTable"></tbody>
+      <tfoot>
+        <tr>
+          <th class="row-head" style="cursor:default"></th>
+          <td class="add-col-cell" colspan="100" style="padding:0">
+            <button onclick="addColumn()">+ إضافة عمود</button>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="modal-bg" id="manualModal">
+    <div class="modal">
+      <h3>📋 استيراد يدوي</h3>
+      <p>الصق الأسماء والأرقام هنا، كل جهة اتصال في سطر منفصل، بين الاسم والرقم فاصلة أو Tab:</p>
+      <textarea id="manualInput" placeholder="أحمد محمد, 01012345678
+سارة علي, 01198765432
+خالد حسن	01234567890"></textarea>
+      <div class="actions">
+        <button onclick="closeManualModal()">إلغاء</button>
+        <button class="primary" onclick="applyManualImport()">استيراد</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const STORAGE_KEY     = 'my-sheet-data-v3';
+  const STORAGE_ALERTS  = 'my-sheet-alerts-enabled';
+  const STORAGE_HISTORY = 'my-sheet-history-v3';
+  const DEFAULT_HEADERS = ['الوقت','الاسم العميل','الكود','المنطقة','رق التواصل','ملاحظات'];
+  const DEFAULT_ROWS    = 8;
+
+  const FLASH_TOTAL_MIN   = 10;
+  const CHECK_INTERVAL_MS = 20000;
+  const TIME_COLUMN_NAME  = 'الوقت';
+  const NAME_COLUMN_NAME  = 'الاسم العميل';
+  const PHONE_COLUMN_NAME = 'رق التواصل';
+  const MAX_HISTORY       = 150;
+
+  const headRow = document.getElementById('headRow');
+  const bodyTable = document.getElementById('bodyTable');
+  const statusEl = document.getElementById('status');
+  const reminderInput = document.getElementById('reminderMin');
+  const reminderBox = document.getElementById('reminderBox');
+  const toggleBtn = document.getElementById('toggleAlerts');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const undoCount = document.getElementById('undoCount');
+  const redoCount = document.getElementById('redoCount');
+  const historyMenuBtn = document.getElementById('historyMenuBtn');
+  const historyDropdown = document.getElementById('historyDropdown');
+  const hdList = document.getElementById('hdList');
+  const hdPosition = document.getElementById('hdPosition');
+  const historyTotal = document.getElementById('historyTotal');
+  const manualModal = document.getElementById('manualModal');
+  const manualInput = document.getElementById('manualInput');
+
+  let data = [];
+  let filterValues = [];
+  let alertsEnabled = true;
+  let reminderTimer = null;
+  let draggedRow = null;
+
+  let timeline = [];
+  let timelineIndex = -1;
+  let pendingBefore = null;
+  let pendingLabel = '';
+  let pendingAction = '';
+
+  function captureState(){
+    return JSON.stringify({
+      data: data,
+      filterValues: filterValues,
+      alertsEnabled: alertsEnabled,
+      reminderMinutes: reminderInput.value
+    });
+  }
+  function restoreState(str){
+    try{
+      const s = JSON.parse(str);
+      if(!s || !Array.isArray(s.data)) return;
+      data = s.data;
+      const cols = data[0]?.length || 0;
+      filterValues = Array.isArray(s.filterValues) ? s.filterValues.slice() : [];
+      while(filterValues.length < cols) filterValues.push('');
+      filterValues.length = cols;
+      alertsEnabled = s.alertsEnabled !== false;
+      if(s.reminderMinutes != null) reminderInput.value = s.reminderMinutes;
+    }catch(e){}
+  }
+  function beginPending(label, action){
+    pendingBefore = captureState();
+    pendingLabel = label; pendingAction = action;
+  }
+  function commitPending(){
+    if(!pendingBefore) return;
+    const after = captureState();
+    if(after === pendingBefore){
+      pendingBefore = null; pendingLabel=''; pendingAction='';
+      return;
+    }
+    pushToTimeline(after, pendingLabel, pendingAction);
+    pendingBefore = null; pendingLabel=''; pendingAction='';
+  }
+  function recordImmediate(label, action){
+    const snap = captureState();
+    pushToTimeline(snap, label, action);
+  }
+  function pushToTimeline(snapshot, label, action){
+    if(timelineIndex < timeline.length - 1){
+      timeline = timeline.slice(0, timelineIndex + 1);
+    }
+    if(timeline.length && timeline[timelineIndex].snapshot === snapshot) return;
+    timeline.push({
+      snapshot: snapshot,
+      label: label || '—',
+      timestamp: Date.now(),
+      action: action || 'edit'
+    });
+    if(timeline.length > MAX_HISTORY) timeline.shift();
+    timelineIndex = timeline.length - 1;
+    saveTimeline();
+    updateHistoryUI();
+    renderHistoryList();
+  }
+  function undo(){
+    if(pendingBefore) commitPending();
+    if(timelineIndex <= 0){ toast('لا يوجد تعديل للرجوع إليه'); return; }
+    timelineIndex--;
+    restoreState(timeline[timelineIndex].snapshot);
+    save(); saveAlertsState(); render(); saveTimeline();
+    toast(`↶ تم الرجوع · متبقي ${timelineIndex} خطوة`);
+  }
+  function redo(){
+    if(pendingBefore) commitPending();
+    if(timelineIndex >= timeline.length - 1){ toast('لا يوجد تعديل للتقدم إليه'); return; }
+    timelineIndex++;
+    restoreState(timeline[timelineIndex].snapshot);
+    save(); saveAlertsState(); render(); saveTimeline();
+    toast(`↷ تم التقدم · متبقي ${timeline.length - 1 - timelineIndex} خطوة`);
+  }
+  function jumpToHistory(index){
+    if(index < 0 || index >= timeline.length) return;
+    if(index === timelineIndex){ closeHistoryMenu(); return; }
+    if(pendingBefore) commitPending();
+    timelineIndex = index;
+    restoreState(timeline[timelineIndex].snapshot);
+    save(); saveAlertsState(); render(); saveTimeline();
+    closeHistoryMenu();
+    toast(`📍 تم الانتقال للخطوة ${index + 1} من ${timeline.length}`);
+  }
+  function clearHistory(){
+    if(!confirm('سيتم مسح كل سجل التعديلات (البيانات الحالية مش هتتأثر). متأكد؟')) return;
+    timeline = [{
+      snapshot: captureState(),
+      label: 'بداية جديدة (بعد مسح السجل)',
+      timestamp: Date.now(),
+      action: 'init'
+    }];
+    timelineIndex = 0;
+    saveTimeline(); updateHistoryUI(); renderHistoryList();
+    toast('تم مسح السجل');
+  }
+  function saveTimeline(){
+    const ser = () => JSON.stringify({ timeline: timeline, timelineIndex: timelineIndex });
+    try{
+      localStorage.setItem(STORAGE_HISTORY, ser());
+    }catch(e){
+      if(e && (e.name === 'QuotaExceededError' || e.code === 22)){
+        while(timeline.length > 10){
+          const reduce = Math.max(5, Math.floor(timeline.length / 4));
+          timeline = timeline.slice(reduce);
+          timelineIndex = Math.max(0, timelineIndex - reduce);
+          try{ localStorage.setItem(STORAGE_HISTORY, ser()); renderHistoryList(); return; }catch(e2){}
+        }
+      }
+    }
+  }
+  function loadTimeline(){
+    try{
+      const raw = localStorage.getItem(STORAGE_HISTORY);
+      if(!raw) return false;
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.timeline) && parsed.timeline.length){
+        timeline = parsed.timeline;
+        timelineIndex = Math.max(0, Math.min(parsed.timelineIndex ?? timeline.length - 1, timeline.length - 1));
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+
+  function updateHistoryUI(){
+    const uCount = timelineIndex;
+    const rCount = timeline.length - 1 - timelineIndex;
+    undoBtn.disabled = uCount <= 0;
+    redoBtn.disabled = rCount <= 0;
+    undoCount.textContent = uCount;
+    redoCount.textContent = rCount;
+    historyTotal.textContent = timeline.length;
+    undoBtn.title = uCount ? `رجوع (${uCount} خطوة) — Ctrl+Z` : 'لا يوجد تعديل للرجوع';
+    redoBtn.title = rCount ? `تقدم (${rCount} خطوة) — Ctrl+Y` : 'لا يوجد تعديل للتقدم';
+    hdPosition.textContent = timeline.length
+      ? `الخطوة ${timelineIndex + 1} من ${timeline.length}`
+      : 'لا يوجد سجل';
+  }
+  function toggleHistoryMenu(e){
+    if(e) e.stopPropagation();
+    if(historyDropdown.classList.contains('open')) closeHistoryMenu();
+    else openHistoryMenu();
+  }
+  function openHistoryMenu(){
+    historyDropdown.classList.add('open');
+    renderHistoryList();
+    setTimeout(()=>{
+      const cur = hdList.querySelector('.history-item.current');
+      if(cur) cur.scrollIntoView({block:'center', behavior:'smooth'});
+    }, 50);
+  }
+  function closeHistoryMenu(){ historyDropdown.classList.remove('open'); }
+
+  function renderHistoryList(){
+    if(!hdList) return;
+    if(!timeline.length){
+      hdList.innerHTML = '<div class="hd-empty">لا يوجد سجل بعد</div>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for(let i = timeline.length - 1; i >= 0; i--){
+      const entry = timeline[i];
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      if(i === timelineIndex) div.classList.add('current');
+      else if(i > timelineIndex) div.classList.add('future');
+
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'icon'; iconSpan.textContent = iconForAction(entry.action);
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'label'; labelSpan.textContent = entry.label;
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'time'; timeSpan.textContent = formatTimeAgo(entry.timestamp);
+
+      div.appendChild(iconSpan); div.appendChild(labelSpan); div.appendChild(timeSpan);
+      div.title = `${entry.label} — ${new Date(entry.timestamp).toLocaleString('ar-EG')}`;
+      div.onclick = () => jumpToHistory(i);
+      frag.appendChild(div);
+    }
+    hdList.innerHTML = '';
+    hdList.appendChild(frag);
+    updateHistoryUI();
+  }
+  function iconForAction(a){
+    const icons = {
+      'init':             '🌱',
+      'edit-cell':        '✏️',
+      'edit-filter':      '🔍',
+      'add-row':          '➕',
+      'add-col':          '➕',
+      'delete-row':       '🗑',
+      'delete-col':       '🗑',
+      'drag-row':         '🎯',
+      'paste':            '📋',
+      'clear':            '🧹',
+      'reset':            '↺',
+      'toggle-alerts':    '🔔',
+      'reminder-min':     '⏱️',
+      'import-contacts':  '📱',
+      'import-manual':    '📋'
+    };
+    return icons[a] || '•';
+  }
+  function formatTimeAgo(ts){
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if(s < 5) return 'الآن';
+    if(s < 60) return `${s} ث`;
+    const m = Math.floor(s / 60);
+    if(m < 60) return `${m} د`;
+    const h = Math.floor(m / 60);
+    if(h < 24) return `${h} س`;
+    return `${Math.floor(h / 24)} ي`;
+  }
+  document.addEventListener('click', (e)=>{
+    if(!historyDropdown.classList.contains('open')) return;
+    if(historyDropdown.contains(e.target)) return;
+    if(historyMenuBtn.contains(e.target)) return;
+    closeHistoryMenu();
+  });
+
+  function colName(i){let s='';i++;while(i>0){const r=(i-1)%26;s=String.fromCharCode(65+r)+s;i=Math.floor((i-1)/26);}return s;}
+  function toast(msg, type){
+    const t=document.getElementById('toast');
+    t.textContent=msg;
+    t.classList.remove('warn','err');
+    if(type) t.classList.add(type);
+    t.classList.add('show');
+    clearTimeout(t._tm);
+    t._tm=setTimeout(()=>t.classList.remove('show'), 2600);
+  }
+  function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){}}
+  function load(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(raw){const p=JSON.parse(raw);
+        if(Array.isArray(p)&&p.length&&Array.isArray(p[0])){data=p;return true;}}
+    }catch(e){}
+    return false;
+  }
+  function saveAlertsState(){try{localStorage.setItem(STORAGE_ALERTS,alertsEnabled?'1':'0');}catch(e){}}
+  function loadAlertsState(){try{if(localStorage.getItem(STORAGE_ALERTS)==='0')alertsEnabled=false;}catch(e){}}
+  function getDefaultData(){
+    const rows = [DEFAULT_HEADERS.slice()];
+    for(let i=0;i<DEFAULT_ROWS;i++) rows.push(new Array(DEFAULT_HEADERS.length).fill(''));
+    return rows;
+  }
+  function findColumnIndex(headerName){
+    if(!data.length) return -1;
+    for(let c=0;c<data[0].length;c++){
+      if(String(data[0][c]).trim() === headerName) return c;
+    }
+    return -1;
+  }
+
+  function render(){
+    const saved = filterValues.slice();
+
+    headRow.innerHTML='<th class="corner"></th>';
+    data[0].forEach((_,c)=>{
+      const th=document.createElement('th');
+      th.className='col-head';th.dataset.col=c;
+      th.innerHTML=`${colName(c)} <button class="del" title="حذف العمود">×</button>`;
+      th.querySelector('.del').onclick=e=>{e.stopPropagation();deleteColumn(c);};
+      th.onclick=()=>selectColumn(c);
+      headRow.appendChild(th);
+    });
+
+    bodyTable.innerHTML='';
+
+    const ftr = document.createElement('tr');
+    ftr.className = 'filter-row';
+    const fth = document.createElement('th');
+    fth.textContent = '🔍';
+    fth.title = 'مسح كل الفلاتر';
+    fth.onclick = clearFilters;
+    ftr.appendChild(fth);
+    data[0].forEach((_,c)=>{
+      const ftd = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = data[0][c] || 'بحث...';
+      inp.dataset.col = c;
+      inp.value = saved[c] || '';
+      inp.onfocus = () => beginPending(`تعديل فلتر (${data[0][c] || colName(c)})`, 'edit-filter');
+      inp.oninput = () => { filterValues[c] = inp.value; applyFilters(); };
+      inp.onblur = () => commitPending();
+      ftd.appendChild(inp);
+      ftr.appendChild(ftd);
+    });
+    bodyTable.appendChild(ftr);
+
+    data.forEach((row,r)=>{
+      const tr=document.createElement('tr');
+      tr.dataset.row = r;
+      const rh=document.createElement('th');
+      rh.className='row-head';rh.dataset.row=r;
+
+      if(r === 0){
+        rh.textContent = '1';
+        rh.title = 'صف العناوين';
+        rh.style.cursor = 'default';
+      }else{
+        rh.innerHTML=`<span class="row-num">${r+1}</span>`;
+        rh.title = 'اسحب لنقل الصف · اضغط للاختيار';
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del';
+        delBtn.textContent = '×';
+        delBtn.title = 'حذف الصف';
+        delBtn.draggable = false;
+        delBtn.ondragstart = e => { e.preventDefault(); e.stopPropagation(); };
+        delBtn.onclick = e => { e.stopPropagation(); deleteRow(r); };
+        rh.appendChild(delBtn);
+
+        rh.draggable = true;
+        rh.ondragstart = (e) => {
+          draggedRow = r;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(r));
+          tr.classList.add('dragging');
+        };
+        rh.ondragend = () => {
+          draggedRow = null;
+          document.querySelectorAll('.dragging, .drag-over-top, .drag-over-bottom')
+            .forEach(x => x.classList.remove('dragging','drag-over-top','drag-over-bottom'));
+        };
+        rh.onclick = () => selectRow(r);
+      }
+      tr.appendChild(rh);
+
+      row.forEach((val,c)=>{
+        const td=document.createElement('td');
+        td.className='cell';td.contentEditable='true';
+        td.dataset.row=r;td.dataset.col=c;
+        td.textContent=val;
+        td.onfocus=()=>{
+          beginPending(`تحرير خلية ${colName(c)}${r+1}`, 'edit-cell');
+          document.querySelectorAll('td.cell.selected').forEach(el=>el.classList.remove('selected'));
+          td.classList.add('selected');
+        };
+        td.oninput=()=>{
+          data[r][c]=td.textContent;
+          save();
+          if(findTimeColumnIndex()===c) checkReminders();
+        };
+        td.onblur=()=>commitPending();
+        td.onkeydown=e=>handleKey(e,r,c);
+        td.onpaste=e=>{
+          const text=(e.clipboardData||window.clipboardData).getData('text');
+          if(text.includes('\t')||text.includes('\n')){
+            e.preventDefault();pasteBlock(r,c,text);
+          }
+        };
+        tr.appendChild(td);
+      });
+
+      if(r > 0){
+        tr.ondragover = (e) => {
+          if(draggedRow == null) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const rect = tr.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          tr.classList.remove('drag-over-top','drag-over-bottom');
+          if(y < rect.height / 2) tr.classList.add('drag-over-top');
+          else tr.classList.add('drag-over-bottom');
+        };
+        tr.ondragleave = () => {
+          tr.classList.remove('drag-over-top','drag-over-bottom');
+        };
+        tr.ondrop = (e) => {
+          e.preventDefault();
+          if(draggedRow == null) return;
+          const rect = tr.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          let targetIndex = y < rect.height / 2 ? r : r + 1;
+          if(draggedRow < targetIndex) targetIndex--;
+          document.querySelectorAll('.drag-over-top, .drag-over-bottom')
+            .forEach(x => x.classList.remove('drag-over-top','drag-over-bottom'));
+          if(targetIndex === draggedRow) return;
+
+          const fromR = draggedRow;
+          const [moved] = data.splice(draggedRow, 1);
+          data.splice(targetIndex, 0, moved);
+          save(); render();
+          recordImmediate(`نقل صف من ${fromR+1} إلى ${targetIndex+1}`, 'drag-row');
+          setTimeout(() => {
+            const movedTr = document.querySelector(`tbody tr[data-row="${targetIndex}"]`);
+            if(movedTr) movedTr.scrollIntoView({block:'nearest', behavior:'smooth'});
+          }, 0);
+          toast('✅ تم نقل الصف');
+        };
+      }
+
+      bodyTable.appendChild(tr);
+    });
+
+    filterValues.length = data[0].length;
+    for(let i=0;i<filterValues.length;i++) if(filterValues[i]==null) filterValues[i]='';
+
+    save(); applyFilters(); checkReminders(); updateAlertsBtn();
+    updateHistoryUI(); renderHistoryList();
+  }
+
+  const contactsSupported = (typeof navigator !== 'undefined')
+    && ('contacts' in navigator)
+    && ('ContactsManager' in window);
+
+  async function importContacts(){
+    if(!contactsSupported){
+      openManualModal();
+      toast('⚠️ المتصفح مش بيدعم القراءة المباشرة — استخدم الاستيراد اليدوي', 'warn');
+      return;
+    }
+    try{
+      const props = ['name', 'tel'];
+      const opts = { multiple: true };
+      const contacts = await navigator.contacts.select(props, opts);
+      if(!contacts || !contacts.length) return;
+      applyImportedContacts(contacts);
+    }catch(err){
+      if(err && (err.name === 'AbortError' || /cancel/i.test(err.message || ''))) return;
+      console.error(err);
+      openManualModal();
+      toast('⚠️ تعذر الوصول لجهات الاتصال — استخدم الإدخال اليدوي', 'warn');
+    }
+  }
+
+  function applyImportedContacts(contacts){
+    const nameCol = findColumnIndex(NAME_COLUMN_NAME);
+    const telCol  = findColumnIndex(PHONE_COLUMN_NAME);
+    if(nameCol < 0 || telCol < 0){
+      toast(`⚠️ لازم يكون فيه أعمدة "${NAME_COLUMN_NAME}" و "${PHONE_COLUMN_NAME}"`, 'err');
+      return;
+    }
+    let imported = 0;
+    let addedRows = 0;
+    const touchedCells = [];
+
+    contacts.forEach(contact => {
+      const name = (Array.isArray(contact.name) ? contact.name[0] : contact.name) || '';
+      const tel  = (Array.isArray(contact.tel)  ? contact.tel[0]  : contact.tel)  || '';
+      if(!name && !tel) return;
+
+      let targetRow = -1;
+      for(let r = 1; r < data.length; r++){
+        const hasName = String(data[r][nameCol] || '').trim();
+        const hasTel  = String(data[r][telCol]  || '').trim();
+        if(!hasName && !hasTel){ targetRow = r; break; }
+      }
+      if(targetRow < 0){
+        data.push(new Array(data[0].length).fill(''));
+        targetRow = data.length - 1;
+        addedRows++;
+      }
+      data[targetRow][nameCol] = name;
+      data[targetRow][telCol]  = tel;
+      touchedCells.push([targetRow, nameCol]);
+      touchedCells.push([targetRow, telCol]);
+      imported++;
+    });
+
+    if(!imported){ toast('لم يتم استيراد أي بيانات'); return; }
+    save(); render();
+
+    requestAnimationFrame(() => {
+      touchedCells.forEach(([r,c]) => {
+        const td = document.querySelector(`td.cell[data-row="${r}"][data-col="${c}"]`);
+        if(td){
+          td.classList.add('just-imported');
+          setTimeout(()=>td.classList.remove('just-imported'), 2100);
+        }
+      });
+    });
+
+    const label = `استيراد ${imported} جهة اتصال${addedRows ? ` (+${addedRows} صف)` : ''}`;
+    recordImmediate(label, 'import-contacts');
+    toast(`✅ تم استيراد ${imported} جهة اتصال`);
+  }
+
+  function openManualModal(){
+    manualModal.classList.add('open');
+    setTimeout(()=>manualInput.focus(), 100);
+  }
+  function closeManualModal(){
+    manualModal.classList.remove('open');
+    manualInput.value = '';
+  }
+  function applyManualImport(){
+    const raw = manualInput.value.trim();
+    if(!raw){ toast('⚠️ لم تكتب أي بيانات', 'warn'); return; }
+
+    const nameCol = findColumnIndex(NAME_COLUMN_NAME);
+    const telCol  = findColumnIndex(PHONE_COLUMN_NAME);
+    if(nameCol < 0 || telCol < 0){
+      toast(`⚠️ لازم يكون فيه أعمدة "${NAME_COLUMN_NAME}" و "${PHONE_COLUMN_NAME}"`, 'err');
+      return;
+    }
+
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    const contacts = [];
+
+    lines.forEach(line => {
+      let parts;
+      if(line.includes('\t'))      parts = line.split('\t');
+      else if(line.includes('،')) parts = line.split('،');
+      else if(line.includes(',')) parts = line.split(',');
+      else                        parts = line.split(/\s{2,}/);
+
+      const name = (parts[0] || '').trim();
+      const tel  = (parts[1] || '').trim();
+      if(name || tel) contacts.push({ name, tel });
+    });
+
+    if(!contacts.length){ toast('⚠️ لم يتم التعرف على أي جهة اتصال', 'warn'); return; }
+
+    let imported = 0, addedRows = 0;
+    const touched = [];
+
+    contacts.forEach(({name, tel}) => {
+      let targetRow = -1;
+      for(let r = 1; r < data.length; r++){
+        const hasName = String(data[r][nameCol] || '').trim();
+        const hasTel  = String(data[r][telCol]  || '').trim();
+        if(!hasName && !hasTel){ targetRow = r; break; }
+      }
+      if(targetRow < 0){
+        data.push(new Array(data[0].length).fill(''));
+        targetRow = data.length - 1;
+        addedRows++;
+      }
+      data[targetRow][nameCol] = name;
+      data[targetRow][telCol]  = tel;
+      touched.push([targetRow, nameCol], [targetRow, telCol]);
+      imported++;
+    });
+
+    save(); render();
+    requestAnimationFrame(() => {
+      touched.forEach(([r,c]) => {
+        const td = document.querySelector(`td.cell[data-row="${r}"][data-col="${c}"]`);
+        if(td){ td.classList.add('just-imported'); setTimeout(()=>td.classList.remove('just-imported'), 2100); }
+      });
+    });
+
+    const label = `استيراد يدوي ${imported} جهة اتصال${addedRows ? ` (+${addedRows} صف)` : ''}`;
+    recordImmediate(label, 'import-manual');
+    toast(`✅ تم استيراد ${imported} جهة اتصال`);
+    closeManualModal();
+  }
+
+  manualModal.addEventListener('click', e => {
+    if(e.target === manualModal) closeManualModal();
+  });
+
+  function exportToExcel(){
+    if(typeof XLSX === 'undefined'){
+      toast('⚠️ تعذر تحميل مكتبة Excel. تحقق من اتصال الإنترنت.', 'err');
+      return;
+    }
+    const rowsForExport = [];
+    document.querySelectorAll('tbody tr:not(.filter-row)').forEach(tr => {
+      if(tr.style.display === 'none') return;
+      const r = +tr.dataset.row;
+      rowsForExport.push(data[r].slice());
+    });
+    if(rowsForExport.length <= 1){ toast('⚠️ لا توجد بيانات للتصدير', 'warn'); return; }
+
+    const ws = XLSX.utils.aoa_to_sheet(rowsForExport);
+    ws['!cols'] = rowsForExport[0].map((_, c) => {
+      let max = 10;
+      rowsForExport.forEach(row => {
+        const v = String(row[c] ?? '');
+        if(v.length > max) max = v.length;
+      });
+      return { wch: Math.min(max + 3, 45) };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'العملاء');
+
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fileName = `جدول-العملاء_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    const anyFilter = filterValues.some(v => (v||'').trim());
+    toast(anyFilter ? '✅ تم التصدير (البيانات المفلترة فقط)' : '✅ تم حفظ ملف Excel');
+  }
+
+  function applyFilters(){
+    let visible = 0;
+    const total = data.length - 1;
+    document.querySelectorAll('tbody tr:not(.filter-row)').forEach(tr=>{
+      const r = +tr.dataset.row;
+      if(r === 0){ tr.style.display = ''; return; }
+      const row = data[r];
+      let match = true;
+      for(let c=0;c<filterValues.length;c++){
+        const f = (filterValues[c]||'').trim().toLowerCase();
+        if(f && !String(row[c]||'').toLowerCase().includes(f)){ match=false; break; }
+      }
+      tr.style.display = match ? '' : 'none';
+      if(match) visible++;
+    });
+    const cols = data[0]?.length || 0;
+    const anyFilter = filterValues.some(v => (v||'').trim());
+    statusEl.textContent = anyFilter
+      ? `🔍 ${visible} من ${total} صف · ${cols} أعمدة`
+      : `${total} صف · ${cols} أعمدة`;
+  }
+  function clearFilters(){
+    if(!filterValues.some(v => (v||'').trim())){ toast('لا يوجد فلاتر لمسحها', 'warn'); return; }
+    filterValues = new Array(data[0].length).fill('');
+    document.querySelectorAll('.filter-row input').forEach(inp => inp.value = '');
+    applyFilters();
+    recordImmediate('مسح كل الفلاتر', 'edit-filter');
+    toast('تم مسح كل الفلاتر');
+  }
+
+  function handleKey(e,r,c){
+    const map={'ArrowUp':[-1,0],'ArrowDown':[1,0],'ArrowLeft':[0,1],'ArrowRight':[0,-1]};
+    if(e.key==='Escape'){e.target.blur();return;}
+    if(e.key==='Enter'){e.preventDefault();moveTo(r+1,c);return;}
+    if(e.key==='Tab'){e.preventDefault();moveTo(r,c+(e.shiftKey?-1:1));return;}
+    if(!map[e.key])return;
+    const sel=window.getSelection();
+    if(sel&&sel.rangeCount){
+      const offset=sel.anchorOffset;
+      const len=(e.target.textContent||'').length;
+      if(e.key==='ArrowLeft'&&offset!==len)return;
+      if(e.key==='ArrowRight'&&offset!==0)return;
+    }
+    e.preventDefault();
+    const [dr,dc]=map[e.key];moveTo(r+dr,c+dc);
+  }
+  function moveTo(r,c){
+    if(r<0)r=0;if(c<0)c=0;
+    if(r>=data.length)addRow(true);
+    if(c>=data[0].length)addColumn(true);
+    const target=document.querySelector(`td.cell[data-row="${r}"][data-col="${c}"]`);
+    if(target){
+      target.focus();
+      const range=document.createRange();
+      range.selectNodeContents(target);range.collapse(false);
+      const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+    }
+  }
+
+  function addRow(silent){
+    data.push(new Array(data[0].length).fill(''));
+    save();render();
+    recordImmediate('إضافة صف جديد', 'add-row');
+    if(!silent){
+      toast('تمت إضافة صف');
+      if(filterValues.some(v=>(v||'').trim())) clearFilters();
+    }
+  }
+  function addColumn(silent){
+    data.forEach(row=>row.push(''));
+    filterValues.push('');
+    save();render();
+    recordImmediate('إضافة عمود جديد', 'add-col');
+    if(!silent) toast('✅ تمت إضافة عمود جديد');
+  }
+  function deleteRow(r){
+    if(r === 0){ toast('لا يمكن حذف صف العناوين', 'warn'); return; }
+    if(data.length<=2){ toast('لا يمكن حذف كل الصفوف', 'warn'); return; }
+    data.splice(r,1); save(); render();
+    recordImmediate(`حذف الصف ${r+1}`, 'delete-row');
+    toast('تم حذف الصف');
+  }
+  function deleteColumn(c){
+    if(data[0].length<=1){ toast('لا يمكن حذف كل الأعمدة', 'warn'); return; }
+    const colLbl = colName(c);
+    data.forEach(row=>row.splice(c,1));
+    filterValues.splice(c,1);
+    save();render();
+    recordImmediate(`حذف العمود ${colLbl}`, 'delete-col');
+    toast('تم حذف العمود');
+  }
+  function clearAll(){
+    if(!confirm('هل تريد تفريغ كل الخلايا؟ (العناوين هتفضل زي ما هي)'))return;
+    data = data.map((row,r) => r===0 ? row.slice() : row.map(()=>''));
+    save();render();
+    recordImmediate('تفريغ كل البيانات', 'clear');
+    toast('تم تفريغ البيانات');
+  }
+  function resetTable(){
+    if(!confirm('سيتم حذف كل البيانات واستعادة الجدول الافتراضي. متأكد؟'))return;
+    data = getDefaultData();
+    filterValues = new Array(DEFAULT_HEADERS.length).fill('');
+    save();render();
+    recordImmediate('إعادة تعيين الجدول', 'reset');
+    toast('تمت إعادة التعيين');
+  }
+
+  let selectedCol=-1,selectedRow=-1;
+  function selectColumn(c){
+    selectedCol=(selectedCol===c)?-1:c;
+    document.querySelectorAll('.col-head').forEach(th=>th.classList.toggle('selected',+th.dataset.col===selectedCol));
+    document.querySelectorAll('.row-head').forEach(th=>th.classList.remove('selected'));
+    document.querySelectorAll('td.cell').forEach(td=>td.classList.toggle('selected',+td.dataset.col===selectedCol));
+  }
+  function selectRow(r){
+    selectedRow=(selectedRow===r)?-1:r;
+    document.querySelectorAll('.row-head').forEach(th=>th.classList.toggle('selected',+th.dataset.row===selectedRow));
+    document.querySelectorAll('.col-head').forEach(th=>th.classList.remove('selected'));
+    document.querySelectorAll('td.cell').forEach(td=>td.classList.toggle('selected',+td.dataset.row===selectedRow));
+  }
+
+  function pasteBlock(r0,c0,text){
+    const rows=text.replace(/\r/g,'').split('\n').filter((_,i,a)=>!(i===a.length-1&&a[i]===''));
+    rows.forEach((line,i)=>{
+      line.split('\t').forEach((val,j)=>{
+        const r=r0+i,c=c0+j;
+        while(data.length<=r)data.push(new Array(data[0].length).fill(''));
+        while(data[0].length<=c)data.forEach(row=>row.push(''));
+        data[r][c]=val;
+      });
+    });
+    filterValues.length = data[0].length;
+    for(let i=0;i<filterValues.length;i++) if(filterValues[i]==null) filterValues[i]='';
+    save();render();
+    recordImmediate(`لصق بيانات (${rows.length} صف)`, 'paste');
+    toast('تم لصق البيانات');
+  }
+
+  function parseTimeToSeconds(str){
+    const s=String(str??'').trim();if(!s)return null;
+    const m=s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);if(!m)return null;
+    const h=+m[1],mi=+m[2],sec=+(m[3]||0);
+    if(h>23||mi>59||sec>59)return null;
+    return h*3600+mi*60+sec;
+  }
+  function findTimeColumnIndex(){
+    if(!data.length)return -1;
+    const header=data[0]||[];
+    for(let c=0;c<header.length;c++)
+      if(String(header[c]).trim()===TIME_COLUMN_NAME) return c;
+    return -1;
+  }
+  function clearAllFlashes(){
+    document.querySelectorAll('td.cell.flash-soon, td.cell.flash-overdue')
+      .forEach(td=>td.classList.remove('flash-soon','flash-overdue'));
+  }
+  function checkReminders(){
+    if(!alertsEnabled){ clearAllFlashes(); return; }
+    clearAllFlashes();
+    const col=findTimeColumnIndex(); if(col<0)return;
+    const windowSec=Math.max(0,+reminderInput.value||0)*60;
+    const flashTotal=FLASH_TOTAL_MIN*60;
+    const now=new Date();
+    const nowSec=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+    document.querySelectorAll(`td.cell[data-col="${col}"]`).forEach(td=>{
+      const r=+td.dataset.row;
+      const raw=data[r]?.[col];
+      const t=parseTimeToSeconds(raw); if(t==null)return;
+      const diff=t-nowSec;
+      const elapsed=windowSec-diff;
+      if(elapsed>=0 && elapsed<=flashTotal){
+        if(diff>=0) td.classList.add('flash-soon');
+        else td.classList.add('flash-overdue');
+      }
+    });
+  }
+  function startReminderLoop(){
+    if(reminderTimer)clearInterval(reminderTimer);
+    checkReminders();
+    reminderTimer=setInterval(checkReminders,CHECK_INTERVAL_MS);
+  }
+
+  function updateAlertsBtn(){
+    if(alertsEnabled){
+      toggleBtn.textContent='🔕 إغلاق الوميض';
+      toggleBtn.classList.add('alerts-on');toggleBtn.classList.remove('alerts-off');
+      reminderBox.classList.remove('disabled');
+      toggleBtn.title='إيقاف كل التنبيهات';
+    }else{
+      toggleBtn.textContent='🔔 تشغيل الوميض';
+      toggleBtn.classList.add('alerts-off');toggleBtn.classList.remove('alerts-on');
+      reminderBox.classList.add('disabled');
+      toggleBtn.title='إعادة تشغيل التنبيهات';
+    }
+  }
+  function toggleAlerts(){
+    alertsEnabled=!alertsEnabled;
+    saveAlertsState();updateAlertsBtn();checkReminders();
+    recordImmediate(alertsEnabled ? 'تشغيل الوميض' : 'إيقاف الوميض', 'toggle-alerts');
+    toast(alertsEnabled?'✅ تم تشغيل التنبيهات':'🔕 تم إغلاق الوميض');
+  }
+
+  reminderInput.addEventListener('focus', ()=>{
+    beginPending('تعديل مدة التنبيه', 'reminder-min');
+  });
+  reminderInput.addEventListener('input', checkReminders);
+  reminderInput.addEventListener('change', ()=>{ commitPending(); checkReminders(); });
+  reminderInput.addEventListener('blur', ()=>commitPending());
+
+  function initState(){
+    let restoredFromHistory = false;
+    if(loadTimeline() && timeline.length){
+      restoreState(timeline[timelineIndex].snapshot);
+      if(!Array.isArray(data) || !data.length) data = getDefaultData();
+      const cols = data[0].length;
+      if(!Array.isArray(filterValues)) filterValues = [];
+      while(filterValues.length < cols) filterValues.push('');
+      filterValues.length = cols;
+      save(); saveAlertsState();
+      restoredFromHistory = true;
+    }
+    if(!restoredFromHistory){
+      if(!load()) data = getDefaultData();
+      if(!Array.isArray(data) || !data.length) data = getDefaultData();
+      const cols = data[0].length;
+      filterValues = new Array(cols).fill('');
+      loadAlertsState();
+      timeline = [{
+        snapshot: captureState(),
+        label: 'الحالة الابتدائية',
+        timestamp: Date.now(),
+        action: 'init'
+      }];
+      timelineIndex = 0;
+      saveTimeline();
+    }
+  }
+
+  initState();
+  updateAlertsBtn();
+  render();
+  startReminderLoop();
+  updateHistoryUI();
+  renderHistoryList();
+
+  (function checkDefaultColumns(){
+    const missing = DEFAULT_HEADERS.filter(h => findColumnIndex(h) < 0);
+    if(missing.length){
+      setTimeout(()=>{
+        toast(`ℹ️ أعمدة ناقصة: ${missing.join(' · ')} — ضيفها يدويًا`, 'warn');
+      }, 800);
+    }
+  })();
+
+  document.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    if((e.ctrlKey||e.metaKey) && key === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+    if((e.ctrlKey||e.metaKey) && (key === 'y' || (key === 'z' && e.shiftKey))){ e.preventDefault(); redo(); return; }
+    if((e.ctrlKey||e.metaKey) && e.key === 'Enter'){
+      e.preventDefault();
+      if(e.shiftKey) addColumn(); else addRow();
+    }
+    if((e.ctrlKey||e.metaKey) && key === 's'){ e.preventDefault(); exportToExcel(); }
+    if((e.ctrlKey||e.metaKey) && key === 'h'){ e.preventDefault(); toggleHistoryMenu(); }
+    if((e.ctrlKey||e.metaKey) && key === 'i'){ e.preventDefault(); importContacts(); }
+    if(e.key === 'Escape'){
+      if(historyDropdown.classList.contains('open')) closeHistoryMenu();
+      if(manualModal.classList.contains('open')) closeManualModal();
+    }
+  });
+</script>
+</body>
+</html>
